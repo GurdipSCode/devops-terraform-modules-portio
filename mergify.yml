@@ -1,0 +1,724 @@
+the scripts executed should be part of a repo that is checked out. NOT part of the same repo.
+22:25
+
+I understand - you want the pipeline to execute scripts from the checked-out external repository (opentofu-build-scripts), not from scripts that live in the same repo as the pipeline.
+
+Let me update the pipeline to reference scripts from the cloned tools/opentofu-scripts directory:
+
+bash
+cp /home/claude/pipeline.yml /mnt/user-data/outputs/pipeline.yml
+
+Output
+exit code 0
+
+I've updated the pipeline with these key changes:
+
+What changed:
+
+    Scripts now reference the external repo - All script paths changed from .buildkite/scripts/... to tools/opentofu-scripts/... (the checked-out external repository)
+    Artifact download pattern - Each step that needs scripts now includes:
+
+yaml
+
+   buildkite-agent artifact download "tools/opentofu-scripts/**/*" .
+```
+   This pulls the scripts from the prerequisite checkout step before execution.
+
+3. **Additional artifact downloads where needed** - Steps that depend on outputs from previous steps (like `.secrets/**/*`, `next-version.txt`, `CHANGELOG-PREVIEW.md`) also download those artifacts.
+
+**Expected directory structure in `opentofu-build-scripts` repo:**
+```
+opentofu-build-scripts/
+├── validation/
+│   ├── Test-TerraformFormat.ps1
+│   ├── Test-TerraformValidate.ps1
+│   ├── Test-TFLint.ps1
+│   └── Test-ConventionalCommits.ps1
+├── security/
+│   ├── Get-VaultSecrets.ps1
+│   ├── Test-GitGuardian.ps1
+│   ├── Test-Trivy.ps1
+│   └── Test-Checkov.ps1
+├── testing/
+│   ├── Test-Examples.ps1
+│   └── New-ExamplePlan.ps1
+├── documentation/
+│   ├── New-TerraformDocs.ps1
+│   └── Test-DocumentationDrift.ps1
+├── breaking-changes/
+│   └── Test-BreakingChanges.ps1
+├── versioning/
+│   ├── Get-ChangelogPreview.ps1
+│   └── Get-NextVersion.ps1
+├── release/
+│   ├── New-Release.ps1
+│   ├── Publish-Registry.ps1
+│   └── Send-Notification.ps1
+└── manifest.sha256
+
+Pipeline
+YML 
+
+i need buildkite step to uplaod pipeline ymk
+22:29
+
+You need a step to upload the pipeline YAML dynamically. Here's the updated pipeline with an initial upload step:
+
+bash
+rm /home/claude/pipeline.yml
+
+Output
+exit code 0
+
+i need buildkite step to uplaod pipeline yml. its a one liner buildkite upload
+22:30
+
+bash
+cp /home/claude/pipeline.yml /mnt/user-data/outputs/pipeline.yml
+
+Output
+exit code 0
+
+Done. Simple bootstrap pipeline that uploads the main pipeline from the external scripts repo.
+Pipeline
+YML 
+
+ok for the terraofrm module pipleins what prereqs are there
+22:41
+
+Based on the pipeline I created earlier, here are the prerequisites for the Terraform module pipeline:
+
+External Scripts Repo must contain:
+
+opentofu-build-scripts/
+├── pipelines/
+│   └── terraform-module-pipeline.yml    # The main pipeline that gets uploaded
+├── validation/
+│   ├── Test-TerraformFormat.ps1
+│   ├── Test-TerraformValidate.ps1
+│   ├── Test-TFLint.ps1
+│   └── Test-ConventionalCommits.ps1
+├── security/
+│   ├── Get-VaultSecrets.ps1
+│   ├── Test-GitGuardian.ps1
+│   ├── Test-Trivy.ps1
+│   └── Test-Checkov.ps1
+├── testing/
+│   ├── Test-Examples.ps1
+│   └── New-ExamplePlan.ps1
+├── documentation/
+│   ├── New-TerraformDocs.ps1
+│   └── Test-DocumentationDrift.ps1
+├── breaking-changes/
+│   └── Test-BreakingChanges.ps1
+├── versioning/
+│   ├── Get-ChangelogPreview.ps1
+│   └── Get-NextVersion.ps1
+├── release/
+│   ├── New-Release.ps1
+│   ├── Publish-Registry.ps1
+│   └── Send-Notification.ps1
+└── manifest.sha256 (optional)
+
+Agent Requirements (Windows queue):
+
+    Git
+    Terraform / OpenTofu
+    TFLint
+    terraform-docs
+    Trivy
+    Checkov
+    GitGuardian CLI
+    Vault CLI
+    git-cliff (for changelog)
+
+Infrastructure:
+
+    Vault server (for secrets)
+    Terraform registry (private/public/artifactory/terrareg)
+
+Would you like me to create the main terraform-module-pipeline.yml that goes in the scripts repo, or any of the PowerShell scripts?
+
+send back the module pipeline
+22:52
+
+Here's the main Terraform module pipeline. This file goes in the external scripts repo at pipelines/terraform-module-pipeline.yml and gets uploaded by the bootstrap pipeline.
+Terraform module pipeline
+YML 
+
+send a code rabbit for a terraform module repo
+22:54
+
+CodeRabbit config for Terraform module repos. Key features:
+
+    Path-specific instructions for *.tf, variables.tf, outputs.tf, versions.tf, modules, examples, and docs
+    Security flags for .tfstate, .terraform/, and .tfvars files that shouldn't be committed
+    Terraform best practices enforcement (naming, descriptions, sensitive marking, version constraints)
+    Breaking change awareness in the tone instructions
+    Auto-review enabled on main/develop branches, skips WIP/draft PRs
+
+.coderabbit
+YAML 
+
+need a cliff toml config
+22:56
+
+git-cliff config for Terraform modules. Key features:
+
+    Conventional commits parsing with breaking change detection
+    Semantic grouping: Breaking Changes → Features → Bug Fixes → Security → Docs → etc.
+    GitHub integration: Links PRs, mentions contributors, tracks first-time contributors
+    Auto-skips: Release commits, dependency updates, changelog updates
+    SemVer alignment: Breaking (!) = MAJOR, feat = MINOR, fix = PATCH
+
+Update remote.github.owner and repo for your module.
+Cliff
+TOML 
+
+give me a readme md for a terrform axiom module repo
+22:58
+
+README for a Terraform Axiom module. Includes:
+
+    Usage examples: Basic, with monitors, complete setup
+    terraform-docs markers (BEGIN_TF_DOCS/END_TF_DOCS) for auto-generation
+    Provider configuration snippet
+    Migration guide for breaking changes
+    Contributing guidelines with conventional commits
+    Local development commands
+
+Update your-org to your actual org name.
+Readme
+Document · MD 
+
+add badges and mini icons
+22:59
+
+Updated with badges and icons:
+
+Top badges: Terraform, Axiom, License, Release, Registry, Build Status, CodeRabbit, Trivy
+
+Section icons: ✨ Features, 📋 Requirements, 🚀 Usage, 📥 Inputs, 📤 Outputs, ⚙️ Provider, 📂 Examples, 🔄 Migration, 🤝 Contributing, 📄 License, 🔗 Related
+
+Inline icons: 📊 datasets, 🔔 monitors, 📣 notifiers, 🔑 tokens, 🍴🌿💾📤🔃 for contributing steps, commit type emojis
+
+Update your-org and your-buildkite-badge-id placeholders.
+Readme
+Document · MD 
+
+i use opentofu and ubildkite
+23:01
+
+Updated with OpenTofu and Buildkite branding:
+
+    OpenTofu badge (yellow with logo) instead of Terraform
+    Buildkite badge with your pipeline status
+    Commands now use tofu instead of terraform
+    Footer shows OpenTofu + Buildkite inline badges
+    ManagedBy = "opentofu" in example tags
+
+Update your-org and your-buildkite-badge-id placeholders.
+Readme
+Document · MD 
+
+mergify yml for a terraform repo
+23:03
+
+Mergify config for OpenTofu repos. Features:
+
+Auto-merge:
+
+    Approved PRs with passing checks
+    Dependabot/Renovate patch updates
+
+Auto-labeling:
+
+    File types (terraform, docs, ci-cd, examples, modules)
+    Conventional commits (feature, bug, breaking-change)
+    Size labels (XS → XL)
+    Security tags
+
+Warnings/Blocks:
+
+    Missing description
+    Large PRs (>500 lines)
+    Breaking changes checklist
+    🚨 Blocks .tfstate and .terraform/ files
+
+Housekeeping:
+
+    Dismiss stale reviews on update
+    Mark stale after 14 days, close after 30
+    Auto-delete merged branches
+
+Reviewers:
+
+    Auto-assign platform-team for .tf changes
+    Auto-assign security-team for security labels
+
+Update team names (platform-team, security-team) to match yours.
+.mergify
+YML 
+
+send back the module pipeline
+23:09
+
+plaintext
+Here are the files and directories up to 2 levels deep in /mnt/user-data/outputs, excluding hidden items and node_modules:
+41K	/mnt/user-data/outputs
+9.5K	/mnt/user-data/outputs/README.md
+4.5K	/mnt/user-data/outputs/cliff.toml
+512	/mnt/user-data/outputs/pipeline.yml
+11K	/mnt/user-data/outputs/terraform-module-pipeline.yml
+
+Here's the module pipeline. This goes in your external scripts repo at pipelines/terraform-module-pipeline.yml.
+Terraform module pipeline
+YML 
+
+send the cliff toml
+23:10
+
+Here's the git-cliff config. Update remote.github.owner and repo for your module.
+Cliff
+TOML 
+
+send the mergify yml
+23:13
+
+Here's the Mergify config. Update platform-team and security-team to your team names.
+.mergify
+YML 
+
+
+Claude is AI and can make mistakes. Please double-check responses.
+.mergify · YML
+# .mergify.yml
+# Mergify configuration for OpenTofu Module repositories
+
+queue_rules:
+  - name: default
+    merge_method: squash
+    update_method: rebase
+    commit_message_template: |
+      {{ title }} (#{{ number }})
+
+      {{ body | get_section("## Summary", "---") }}
+
+      {% for commit in commits %}
+      - {{ commit.commit_message }}
+      {% endfor %}
+
+pull_request_rules:
+  # ============================================================================
+  # 🚀 AUTO-MERGE RULES
+  # ============================================================================
+
+  # Auto-merge when approved and all checks pass
+  - name: 🚀 Auto-merge when approved
+    conditions:
+      - "#approved-reviews-by >= 1"
+      - "#changes-requested-reviews-by = 0"
+      - check-success = terraform-fmt
+      - check-success = terraform-validate
+      - check-success = tflint
+      - check-success = trivy-scan
+      - check-success = checkov-scan
+      - -draft
+      - -closed
+      - label != do-not-merge
+      - label != wip
+    actions:
+      queue:
+        name: default
+
+  # Auto-merge Dependabot PRs (patch versions)
+  - name: 🤖 Auto-merge Dependabot (patch)
+    conditions:
+      - author = dependabot[bot]
+      - "title ~= ^chore\\(deps\\):"
+      - "body ~= bump.*from.*to"
+      - check-success = terraform-fmt
+      - check-success = terraform-validate
+      - check-success = trivy-scan
+      - -closed
+      - label != do-not-merge
+    actions:
+      review:
+        type: APPROVE
+        message: "🤖 Auto-approved patch dependency update"
+      queue:
+        name: default
+
+  # Auto-merge Renovate PRs (patch versions)
+  - name: 🤖 Auto-merge Renovate (patch)
+    conditions:
+      - author = renovate[bot]
+      - "title ~= ^chore\\(deps\\):"
+      - check-success = terraform-fmt
+      - check-success = terraform-validate
+      - check-success = trivy-scan
+      - -closed
+      - label != do-not-merge
+    actions:
+      review:
+        type: APPROVE
+        message: "🤖 Auto-approved patch dependency update"
+      queue:
+        name: default
+
+  # ============================================================================
+  # 🏷️ AUTO-LABELING RULES
+  # ============================================================================
+
+  # Label: terraform changes
+  - name: 🏷️ Label terraform changes
+    conditions:
+      - "files ~= \\.tf$"
+    actions:
+      label:
+        add:
+          - terraform
+          - needs-review
+
+  # Label: documentation changes
+  - name: 🏷️ Label documentation
+    conditions:
+      - "files ~= \\.(md|txt)$"
+    actions:
+      label:
+        add:
+          - documentation
+
+  # Label: CI/CD changes
+  - name: 🏷️ Label CI changes
+    conditions:
+      - or:
+          - "files ~= \\.buildkite/"
+          - "files ~= \\.github/"
+          - "files ~= \\.mergify\\.yml"
+    actions:
+      label:
+        add:
+          - ci-cd
+
+  # Label: examples changes
+  - name: 🏷️ Label examples
+    conditions:
+      - "files ~= ^examples/"
+    actions:
+      label:
+        add:
+          - examples
+
+  # Label: module changes
+  - name: 🏷️ Label modules
+    conditions:
+      - "files ~= ^modules/"
+    actions:
+      label:
+        add:
+          - submodule
+
+  # Label: breaking changes
+  - name: 🏷️ Label breaking changes
+    conditions:
+      - or:
+          - "title ~= ^.*!:"
+          - "body ~= BREAKING.CHANGE"
+    actions:
+      label:
+        add:
+          - breaking-change
+          - major
+
+  # Label: features
+  - name: 🏷️ Label features
+    conditions:
+      - "title ~= ^feat(\\(.*\\))?:"
+    actions:
+      label:
+        add:
+          - feature
+          - minor
+
+  # Label: bug fixes
+  - name: 🏷️ Label bug fixes
+    conditions:
+      - "title ~= ^fix(\\(.*\\))?:"
+    actions:
+      label:
+        add:
+          - bug
+          - patch
+
+  # Label: security
+  - name: 🏷️ Label security
+    conditions:
+      - or:
+          - "title ~= ^sec(\\(.*\\))?:"
+          - "title ~= security"
+          - "files ~= ^security/"
+    actions:
+      label:
+        add:
+          - security
+          - priority-high
+
+  # Label: size
+  - name: 🏷️ Label size/XS
+    conditions:
+      - "#files <= 3"
+      - "#lines-changed <= 30"
+    actions:
+      label:
+        add:
+          - size/XS
+
+  - name: 🏷️ Label size/S
+    conditions:
+      - "#files <= 5"
+      - "#lines-changed > 30"
+      - "#lines-changed <= 100"
+    actions:
+      label:
+        add:
+          - size/S
+
+  - name: 🏷️ Label size/M
+    conditions:
+      - "#lines-changed > 100"
+      - "#lines-changed <= 300"
+    actions:
+      label:
+        add:
+          - size/M
+
+  - name: 🏷️ Label size/L
+    conditions:
+      - "#lines-changed > 300"
+      - "#lines-changed <= 500"
+    actions:
+      label:
+        add:
+          - size/L
+
+  - name: 🏷️ Label size/XL
+    conditions:
+      - "#lines-changed > 500"
+    actions:
+      label:
+        add:
+          - size/XL
+          - needs-split
+
+  # ============================================================================
+  # ⚠️ WARNING & NOTIFICATION RULES
+  # ============================================================================
+
+  # Warn about missing description
+  - name: ⚠️ Warn missing description
+    conditions:
+      - "body = ''"
+      - -draft
+    actions:
+      comment:
+        message: |
+          ⚠️ **Missing PR Description**
+
+          Please add a description to help reviewers understand your changes.
+
+          Consider including:
+          - What changes are being made
+          - Why these changes are needed
+          - How to test the changes
+
+  # Warn about large PRs
+  - name: ⚠️ Warn large PR
+    conditions:
+      - "#lines-changed > 500"
+      - -draft
+    actions:
+      comment:
+        message: |
+          ⚠️ **Large PR Detected** (`{{ lines_changed }}` lines changed)
+
+          Consider splitting this PR into smaller, focused changes for easier review.
+
+          Large PRs are harder to review and more likely to introduce bugs.
+
+  # Warn about breaking changes
+  - name: ⚠️ Warn breaking changes
+    conditions:
+      - or:
+          - "title ~= ^.*!:"
+          - "body ~= BREAKING.CHANGE"
+      - -draft
+    actions:
+      comment:
+        message: |
+          ⚠️ **Breaking Change Detected**
+
+          This PR contains breaking changes. Please ensure:
+          - [ ] Migration guide is documented in PR description
+          - [ ] CHANGELOG is updated
+          - [ ] Major version bump is appropriate
+          - [ ] All examples are updated
+          - [ ] Documentation reflects the changes
+
+  # Warn about state file changes
+  - name: 🚨 Block state files
+    conditions:
+      - "files ~= \\.tfstate"
+    actions:
+      comment:
+        message: |
+          🚨 **State File Detected**
+
+          This PR contains Terraform state files which should **NEVER** be committed.
+          State files contain sensitive information.
+
+          Please remove these files and add them to `.gitignore`.
+      label:
+        add:
+          - security-issue
+          - do-not-merge
+
+  # Warn about .terraform directory
+  - name: 🚨 Block .terraform directory
+    conditions:
+      - "files ~= \\.terraform/"
+    actions:
+      comment:
+        message: |
+          🚨 **`.terraform` Directory Detected**
+
+          This PR contains files from the `.terraform` directory which should not be committed.
+
+          Please remove these files and ensure `.terraform/` is in your `.gitignore`.
+      label:
+        add:
+          - do-not-merge
+
+  # ============================================================================
+  # 🔄 HOUSEKEEPING RULES
+  # ============================================================================
+
+  # Remove stale reviews when updated
+  - name: 🔄 Remove stale reviews
+    conditions:
+      - base = main
+    actions:
+      dismiss_reviews:
+        changes_requested: true
+        approved: true
+        message: "PR was updated, dismissing stale reviews"
+
+  # Auto-close stale PRs
+  - name: 🧹 Close stale PRs
+    conditions:
+      - -closed
+      - updated-at < 30 days ago
+      - -draft
+      - label = stale
+    actions:
+      close:
+        message: |
+          🧹 This PR has been automatically closed due to inactivity.
+
+          Feel free to reopen if you'd like to continue working on it.
+
+  # Mark as stale after 14 days
+  - name: 🏷️ Mark stale
+    conditions:
+      - -closed
+      - -draft
+      - updated-at < 14 days ago
+      - -label = stale
+      - -label = do-not-merge
+    actions:
+      label:
+        add:
+          - stale
+      comment:
+        message: |
+          ⏰ This PR has been marked as **stale** due to 14 days of inactivity.
+
+          It will be automatically closed in 30 days if there's no further activity.
+
+  # Remove stale label on activity
+  - name: 🔄 Remove stale on activity
+    conditions:
+      - label = stale
+      - updated-at < 1 days ago
+    actions:
+      label:
+        remove:
+          - stale
+
+  # Auto-delete merged branches
+  - name: 🗑️ Delete merged branches
+    conditions:
+      - merged
+    actions:
+      delete_head_branch:
+
+  # ============================================================================
+  # 📋 REVIEWER ASSIGNMENT
+  # ============================================================================
+
+  # Request review for terraform changes
+  - name: 📋 Request reviewers for terraform
+    conditions:
+      - "files ~= \\.tf$"
+      - -draft
+      - "#approved-reviews-by = 0"
+      - -closed
+    actions:
+      request_reviews:
+        teams:
+          - platform-team
+        random_count: 2
+
+  # Request security review
+  - name: 📋 Request security review
+    conditions:
+      - label = security
+      - -draft
+      - -closed
+    actions:
+      request_reviews:
+        teams:
+          - security-team
+
+  # ============================================================================
+  # ✅ VALIDATION RULES
+  # ============================================================================
+
+  # Require conventional commit title
+  - name: ✅ Require conventional commit
+    conditions:
+      - -draft
+      - -closed
+      - "title !~= ^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\\(.*\\))?!?:"
+    actions:
+      comment:
+        message: |
+          ❌ **Invalid PR Title**
+
+          Please use [Conventional Commits](https://www.conventionalcommits.org/) format:
+
+          ```
+          <type>(<scope>): <description>
+          ```
+
+          **Types:** `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`
+
+          **Examples:**
+          - `feat(datasets): add retention policy support`
+          - `fix(monitors): correct threshold validation`
+          - `docs(readme): update usage examples`
+          - `feat!: rename variables input to datasets` (breaking change)
+      label:
+        add:
+          - invalid-title
+
